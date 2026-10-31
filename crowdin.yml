@@ -1,0 +1,20 @@
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+base_path: "."
+base_url: "https://api.crowdin.com"
+
+files:
+  - source: "/languages/en_us/**/*.json"
+    translation: "/languages/%locale%/%original_file_name%"
+    languages_mapping:
+      locale:
+        zh-TW: "zh_tw"
+        zh-CN: "zh_cn"
+        zh-HK: "zh_hk"
+        en-US: "en_us"
+        en-GB: "en_gb"
+        ja: "ja_jp"
+        ko: "ko_kr"
+        fr: "fr_fr"
+        de: "de_de"
+        ru: "ru_ru"
