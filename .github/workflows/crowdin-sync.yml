@@ -25,7 +25,20 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Check for Source Files
+        id: check_sources
+        run: |
+          COUNT=$(find languages/en_us -name "*.json" ! -name "manifest.json" | wc -l)
+          echo "Found $COUNT source files in languages/en_us"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "has_sources=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_sources=false" >> $GITHUB_OUTPUT
+            echo "::notice::No translation source JSON files found in languages/en_us yet. Crowdin sync skipped until telemetry texts are ingested."
+          fi
+
       - name: Crowdin Upload Sources & Download Translations
+        if: steps.check_sources.outputs.has_sources == 'true'
         uses: crowdin/github-action@v2
         with:
           config: crowdin.yml
@@ -40,10 +53,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Recompute Manifest SHA-256
+        if: steps.check_sources.outputs.has_sources == 'true'
         run: |
           python tools/update_manifest.py
 
       - name: Create Pull Request with Translations
+        if: steps.check_sources.outputs.has_sources == 'true'
         uses: peter-evans/create-pull-request@v6
         with:
           commit-message: 'chore(l10n): New Crowdin translations and manifest update'
