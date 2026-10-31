@@ -3,5 +3,14 @@
   "locale": "en_us",
   "displayName": "English (US)",
   "version": "1.0.0",
-  "files": []
+  "files": [
+    {
+      "path": "npc/names.json",
+      "sha256": "9a6b1d78d2b9d487a4d9be45c4d5ece64d2d240cf0b59f3af1083cb93cc99eb2"
+    },
+    {
+      "path": "quests/unclassified.json",
+      "sha256": "1a9de98f93cf41e61fc740f58fb7aaceb8f4482a692d6bca1d81b2bfa365aa1c"
+    }
+  ]
 }
