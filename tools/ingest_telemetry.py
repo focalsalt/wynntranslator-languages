@@ -27,6 +27,39 @@ def sanitize_filename(name: str) -> str:
     return cleaned or "unclassified"
 
 
+def is_valid_telemetry_entry(text: str) -> bool:
+    if not text or len(text.strip()) <= 1:
+        return False
+    trimmed = text.strip()
+
+    # Filter out Unicode PUA (e.g. \uE000-\uF8FF, \u000F0000-\u0010FFFF)
+    if any((0xE000 <= ord(c) <= 0xF8FF) or (ord(c) >= 0xF0000) for c in trimmed):
+        return False
+
+    # Filter out block elements / health bars (\u2580-\u259F)
+    if any(0x2580 <= ord(c) <= 0x259F for c in trimmed):
+        return False
+
+    # Filter out historical <num> fragments
+    if "<num>" in trimmed:
+        return False
+
+    # Filter out pure numbers, percentages, health fragments, symbols
+    if re.fullmatch(r"[\d\s.,/\-+%kM❤☠✖ⒸⓀ:;()\[\]{}#]+", trimmed):
+        return False
+
+    # Filter out pure health expressions like "15.2k/30.6k"
+    if re.fullmatch(r"\d+(?:\.\d+)?[kM]?\s*/\s*\d+(?:\.\d+)?[kM]?", trimmed):
+        return False
+
+    # Filter out strings without at least two ASCII alphabetic letters (English source text)
+    letters = [c for c in trimmed if c.isascii() and c.isalpha()]
+    if len(letters) < 2:
+        return False
+
+    return True
+
+
 def load_json_file(filepath: str) -> dict:
     if os.path.exists(filepath):
         try:
@@ -75,7 +108,48 @@ def fetch_telemetry_items(endpoint: str, token: str, min_count: int, limit: int 
         return []
 
 
-def ingest(endpoint: str, token: str, min_count: int, languages_dir: str) -> int:
+def clean_historical_data(languages_dir: str) -> int:
+    removed_count = 0
+    en_us_dir = os.path.join(languages_dir, "en_us")
+    if not os.path.exists(en_us_dir):
+        return 0
+
+    # Remove deprecated npc directory completely
+    npc_dir = os.path.join(en_us_dir, "npc")
+    if os.path.exists(npc_dir):
+        import shutil
+        shutil.rmtree(npc_dir, ignore_errors=True)
+        print(f"[Info] Removed deprecated directory: {npc_dir}")
+        removed_count += 1
+
+    for root, _, files in os.walk(en_us_dir):
+        for file in files:
+            if not file.endswith(".json") or file == "manifest.json":
+                continue
+            filepath = os.path.join(root, file)
+            data = load_json_file(filepath)
+            cleaned = {k: v for k, v in data.items() if is_valid_telemetry_entry(k)}
+            diff = len(data) - len(cleaned)
+            if diff > 0:
+                removed_count += diff
+                if cleaned:
+                    save_json_file(filepath, cleaned)
+                    print(f"[Info] Cleaned {diff} entries from {file}")
+                else:
+                    os.remove(filepath)
+                    print(f"[Info] Removed empty polluted file: {filepath}")
+
+    if removed_count > 0:
+        print("[Success] Cleaned historical polluted entries.")
+        update_manifest_for_locale(languages_dir, "en_us")
+
+    return removed_count
+
+
+def ingest(endpoint: str, token: str, min_count: int, languages_dir: str, clean_historical: bool = True) -> int:
+    if clean_historical:
+        clean_historical_data(languages_dir)
+
     items = fetch_telemetry_items(endpoint, token, min_count)
     if not items:
         print("[Info] No new telemetry items found meeting criteria.")
@@ -98,12 +172,28 @@ def ingest(endpoint: str, token: str, min_count: int, languages_dir: str) -> int
         if not source_text:
             continue
 
+        # Drop deprecated NPC names
         if category == "npc":
-            target_file = os.path.join(en_us_dir, "npc", "names.json")
+            continue
+
+        # Filter out junk, health bars, PUA characters, and <num> fragments
+        if not is_valid_telemetry_entry(source_text):
+            continue
+
+        if category == "hints":
+            target_file = os.path.join(en_us_dir, "hints", "hints.json")
             data = load_json_file(target_file)
-            key = speaker if speaker else source_text
-            if key not in data:
-                data[key] = key
+            if source_text not in data:
+                data[source_text] = source_text
+                save_json_file(target_file, data)
+                added_count += 1
+                modified_files.add(target_file)
+
+        elif category == "objectives":
+            target_file = os.path.join(en_us_dir, "objectives", "objectives.json")
+            data = load_json_file(target_file)
+            if source_text not in data:
+                data[source_text] = source_text
                 save_json_file(target_file, data)
                 added_count += 1
                 modified_files.add(target_file)
@@ -143,11 +233,16 @@ def main():
     parser.add_argument("--token", default=os.getenv("TELEMETRY_ADMIN_KEY", ""), help="Admin bearer token for authorization")
     parser.add_argument("--min-count", type=int, default=2, help="Minimum report_count threshold")
     parser.add_argument("--languages-dir", default=None, help="Path to languages directory")
+    parser.add_argument("--clean-only", action="store_true", help="Only clean historical corrupted data and exit")
 
     args = parser.parse_args()
 
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     languages_dir = args.languages_dir or os.path.join(base_dir, "languages")
+
+    if args.clean_only:
+        clean_historical_data(languages_dir)
+        sys.exit(0)
 
     count = ingest(args.url, args.token, args.min_count, languages_dir)
     sys.exit(0)

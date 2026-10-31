@@ -3,5 +3,10 @@
   "locale": "zh_tw",
   "displayName": "繁體中文",
   "version": "1.0.0",
-  "files": []
+  "files": [
+    {
+      "path": "hints/hints.json",
+      "sha256": "3b104b919e132de2b39e2e19bfcd1fac2519542308ae6a01eab779a5e23d089f"
+    }
+  ]
 }
