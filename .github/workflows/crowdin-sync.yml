@@ -1,4 +1,4 @@
-name: Crowdin Localization Sync
+name: Crowdin Localization Sync (Fully Automated)
 
 on:
   push:
@@ -6,12 +6,11 @@ on:
     paths:
       - 'languages/**'
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 1,13 * * *' # Automatically runs every 12 hours (01:00 & 13:00 UTC)
   workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   synchronize:
@@ -57,15 +56,9 @@ jobs:
         run: |
           python tools/update_manifest.py
 
-      - name: Create Pull Request with Translations
+      - name: Commit and Push Translations Directly to Main
         if: steps.check_sources.outputs.has_sources == 'true'
-        uses: peter-evans/create-pull-request@v6
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit-message: 'chore(l10n): New Crowdin translations and manifest update'
-          title: 'chore(l10n): New Crowdin translations update'
-          body: |
-            ### Automated Crowdin Translations Sync
-            Latest community translations downloaded from Crowdin.
-            `manifest.json` and SHA-256 checksums have been automatically recomputed.
-          branch: l10n_crowdin_translations
-          delete-branch: true
+          commit_message: 'chore(l10n): automatically sync Crowdin translations and update manifest'
+          file_pattern: 'languages/**'
