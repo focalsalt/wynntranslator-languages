@@ -5,8 +5,16 @@
   "version": "1.0.0",
   "files": [
     {
+      "path": "gui/shared.json",
+      "sha256": "d9125f80bdd252e049cf904f20fc5ae02423eefecb92814a33f3b89197910685"
+    },
+    {
       "path": "hints/hints.json",
-      "sha256": "9151fb16c46ee07da5edb38f514002438be67a0538062d4bd778ae58e24b3e87"
+      "sha256": "fd6e36febe01735effb8bacb4c4980f5f1fe0d40330d3788ea7013636dd3acc6"
+    },
+    {
+      "path": "quests/unclassified.json",
+      "sha256": "7c1978c48eda4700a4a6da8de49a6f9a35069382bbcbfb6a292ec2ffe0b2644a"
     }
   ]
 }
